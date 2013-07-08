@@ -170,6 +170,9 @@ public class JopClassInfo extends OldClassInfo implements Serializable {
     public ClFT clft;
     private int instSize;
     private int instGCinfo;
+    private int gcInfoAddr;
+    
+    private ArrayList<Integer> instGCinfoArray;
 
     public List<Integer> cpoolUsed;
     public int cpoolArry[];
@@ -328,7 +331,11 @@ public class JopClassInfo extends OldClassInfo implements Serializable {
     public int setAddress(OldAppInfo ai, int addr) {
 
         int i;
-        instGCinfo = getGCInfo();
+        gcInfoAddr = addr;
+        instGCinfoArray = getGCInfoArray();
+        //instGCinfo = getGCInfo();
+        addr += instGCinfoArray.size()+1;
+        
         classRefAddress = addr;
         // class head contains the instance size and
         // a pointer to the interface table
@@ -432,14 +439,47 @@ public class JopClassInfo extends OldClassInfo implements Serializable {
     }
 
     /**
+     * get GC info for the instance (can be used with objects with more than 32 fields)
+     */
+     private ArrayList<Integer> getGCInfoArray() {
+        //int gcInfoFieldNum = (instSize + (32-(instSize % 32)))/32;
+        //int[] gcFields = new int[gcInfoFieldNum];
+        ArrayList<Integer> gcFields = new ArrayList<Integer>();
+        
+        for (JopClassInfo clinf = this; clinf != null; clinf = (JopClassInfo) clinf.superClass) {
+            ClFT ft = clinf.clft;
+            for (int i = 0; i < ft.len; ++i) {
+                if (!ft.isStatic[i] & ft.isReference[i]) {
+                    int index = ft.idx[i];
+                    int fieldIdx = (index - (index % 32))/32;
+                    
+                    if(fieldIdx > (gcFields.size() - 1)) {
+                        for(int j = gcFields.size(); j < fieldIdx+1; j++) {
+                            gcFields.add(new Integer(0));
+                        }
+                    }
+                    Integer field = gcFields.get(fieldIdx);
+                    field |= (1 << (index%32));
+                    gcFields.set(fieldIdx, field);
+                    //gcInfo |= (1 << ft.idx[i]);
+                }
+            }
+        }
+        
+        return gcFields;
+     }
+    
+    /**
      * generate GC info for the instance
      */
     private int getGCInfo() {
-
         int gcInfo = 0;
         for (JopClassInfo clinf = this; clinf != null; clinf = (JopClassInfo) clinf.superClass) {
             ClFT ft = clinf.clft;
             for (int i = 0; i < ft.len; ++i) {
+                if (!ft.isStatic[i]) {
+                    System.out.println("Field index: " + ft.idx[i]);
+                }
                 if (!ft.isStatic[i] & ft.isReference[i]) {
                     gcInfo |= (1 << ft.idx[i]);
                 }
@@ -745,7 +785,14 @@ public class JopClassInfo extends OldClassInfo implements Serializable {
     public void dump(PrintWriter out, PrintWriter outLinkInfo) {
 
         int i;
-
+        
+        out.println("//");
+        out.println("//\t" + gcInfoAddr + ": " + clazz.getClassName()+ " GC info");
+        out.println("//");
+        out.println("\t\t" + instGCinfoArray.size() + ",\t//\tgc info length");
+        for(i = 0; i < instGCinfoArray.size(); i++) {
+            out.println("\t\t" + instGCinfoArray.get(i) + ",\t//\tgc word " + i);
+        }
 
         out.println("//");
         out.println("//\t" + classRefAddress + ": " + clazz.getClassName()+" class info");
@@ -766,12 +813,12 @@ public class JopClassInfo extends OldClassInfo implements Serializable {
 
         out.println("\t\t" + staticValueVarAddress
                 + ",\t//\tpointer to static primitive fields");
-        if (instSize > 31) {
+        /*if (instSize > 31) {
             System.err.println("Error: Object of " + clazz.getClassName()
                     + " to big! Size=" + instSize);
             System.exit(-1);
-        }
-        out.println("\t\t" + instGCinfo + ",\t//\tinstance GC info");
+        }*/
+        out.println("\t\t" + /*instGCinfo*/ gcInfoAddr + ",\t//\tinstance GC info pointer");
 
         String supname = "null";
         int superAddr = 0;
