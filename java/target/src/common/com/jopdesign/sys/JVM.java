@@ -805,7 +805,10 @@ class JVM {
 	}
 
 	static int f_newarray(int count, int type) {
-
+        // this shouldn't happen as type 0 is for objects
+        if(type == 0) {
+            type = 0xffffffff;
+        }
 		return GC.newArray(count, type);
 
 	}
