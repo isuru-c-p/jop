@@ -392,13 +392,21 @@ public class GC {
 				// it's a plain object				
 				// get pointer to method table
 				flags = Native.rdMem(ref+OFF_MTAB_ALEN);
-				// get real flags
-				flags = Native.rdMem(flags+Const.MTAB2GC_INFO);
-				for (i=0; flags!=0; ++i) {
-					if ((flags&1)!=0) {
-						push(Native.rdMem(addr+i));
-					}
-					flags >>>= 1;
+                int gcInfoPointer = Native.rdMem(flags+Const.MTAB2GC_INFO);
+                //GC.log("GC info pointer:", gcInfoPointer);
+                int gcInfoLength = Native.rdMem(gcInfoPointer);
+                //GC.log("length:", gcInfoLength);
+                //log("GC: flags:", flags);
+                for(i = 0; i < gcInfoLength; i++) {
+                    flags = Native.rdMem(gcInfoPointer+1+i);
+                    //GC.log("flags:",flags);
+                    //while(flags != 0) {
+                    for(int j = 0; j < 32; j++) {
+                        if ((flags&1)!=0) {
+                            push(Native.rdMem(addr+i*32+j));
+                        }
+                        flags >>>= 1;
+                    }
 				}				
 			}
 
