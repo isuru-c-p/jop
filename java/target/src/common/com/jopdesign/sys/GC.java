@@ -391,21 +391,22 @@ public class GC {
 			} else if (flags==IS_OBJ){
 				// it's a plain object				
 				// get pointer to method table
-				flags = Native.rdMem(ref+OFF_MTAB_ALEN);
-                int gcInfoPointer = Native.rdMem(flags+Const.MTAB2GC_INFO);
+				int methodTablePointer = Native.rdMem(ref+OFF_MTAB_ALEN);
+                int gcInfoPointer = Native.rdMem(methodTablePointer+Const.MTAB2GC_INFO);
                 //GC.log("GC info pointer:", gcInfoPointer);
                 int gcInfoLength = Native.rdMem(gcInfoPointer);
+                int gcflags;
                 //GC.log("length:", gcInfoLength);
                 //log("GC: flags:", flags);
                 for(i = 0; i < gcInfoLength; i++) {
-                    flags = Native.rdMem(gcInfoPointer+1+i);
+                    gcflags = Native.rdMem(gcInfoPointer+1+i);
                     //GC.log("flags:",flags);
                     //while(flags != 0) {
                     for(int j = 0; j < 32; j++) {
-                        if ((flags&1)!=0) {
+                        if ((gcflags&1)!=0) {
                             push(Native.rdMem(addr+i*32+j));
                         }
-                        flags >>>= 1;
+                        gcflags >>>= 1;
                     }
 				}				
 			}
